@@ -94,3 +94,58 @@ redis 还可以做消息队列  比如聊天室  IM
 **MOVE KEY db:**将key移动到指定的db中；
 
 **TYPE KEY :**返回key所存储的值的类型。
+
+
+
+#### key的命名建议：
+
+1.key不要太长，尽量不要超过1024字节，这样会很消耗内存，并且降低查询效率；
+
+2.key也不要太短，否则可读性很差；
+
+3.在一个项目中使用统一的命名方式；（例如user:123:password）;
+
+4.key的名称区分大小写。
+
+
+
+#### String类型简介：
+
+String是redis的基本类型，一个key对应一个value;
+
+String类型是二进制安全的，可以包含jpg图像。
+
+#### String命令：
+
+**SET key_name VALUE**  给key赋值，重复写则覆盖值；
+
+**SETNX key_name VALUE**   只有key不存在时设置key的值为value；
+
+**GET key_name** 不存在时返回nil，若key存储的值不是String类型，则返回错误；
+
+**GETRANGE key_name STRAT END** 字符串的截取，闭合区间；
+
+**GETSET   key_name VALUE**  返回key原来的值，并赋新值;
+
+**STRLEN key_name**  返回key所存储的字符串的长度；
+
+**DEL key_name** 删除指定key;
+
+**INCR key_name**   执行自增，若初始为空，则自动从0开始加
+
+**INCRBY key_name 增量**   按增量递增；
+
+**DECR key_name**  
+
+**DECR key_name 减量**
+
+#### 应用场景：
+
+1.String通常用于保存单个字符串或者JSON数据；
+
+2.因为String是二进制安全的，所以可以存图片；
+
+3.计数器，因为INCR 等命令的特性。
+
+
+
