@@ -43,3 +43,11 @@ mvn install:install-file -Dfile=/home/twisted/下载/kefu-lite-daas-core-3.0.1.F
 　　比如我把linux文件系统rootfs_dir软链接到/home/jyg/目录下
 
 　　ln -s /opt/linux/rootfs_dir  /home/jyg/rootfs_dir就可以了
+
+
+
+#### 从服务器下载文件
+
+scp -P 3299  root@60.205.146.123:/data/apps/log/kefu/KefuLiteWebapp/KefuLiteWebapp-11007-log.log.2019-07-05-09.gz /home/ai/文档
+
+SCP -P 端口号  账号@地址:要复制文件的地址  本地接受地址

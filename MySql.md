@@ -182,3 +182,119 @@ rpad(string, length, pad)    --在str后用pad补充,直到长度为length
 rtrim(string)            -- 去除后端空格
 strcmp(string1 ,string2)    -- 逐字符比较两字串大小
 ```
+
+
+### EXPLAN详解
+
+~~~sql
+mysql> explain update users set name='test' where userid=1;
++----+-------------+-------+------------+-------+---------------+---------+---------+-------+---
+|id|select_type|table|partitions|type|possible_keys|key|key_len|ref|rows|filtered|Extra|
++----+-------------+-------+------------+-------+---------------+---------+---------+-------+---
+|1 | UPDATE    |users| NULL     |range| PRIMARY    |PRIMARY|8  |const|1 |100.00  |Using where|
++----+-------------+-------+------------+-------+---------------+---------+---------+-------+---
+~~~
+
+输出列	                  含义
+id	                          查询标识
+select_type	          查询类型
+table	                  查询涉及的表
+partitions	          匹配到的分区信息
+type	                  连接类型
+possible_keys	  可能选择的索引
+key	                          实际使用的索引
+key_len	                  实际使用的索引的长度
+ref	                          和索引进行比较的列
+rows	                  需要被检索的大致行数
+filtered	                  按表条件过滤的行百分比
+Extra	                  额外信息
+
+1.**id**    id相同，执行顺序**由上至下**；如果是**子查询**，id的序号会**递增**，id值越大优先级**越高**，越**先**被执行；id如果相同，可以认为是一组，从上往下顺序执行；在所有组中，id值越大，优先级越高，越先执行；当该行数据引用了其它查询的**UNION结果**时，**id列显示为NULL**，此时，**table列显示类似这样：< unionM,N>**，表示引用了查询标识为M、N的两行的UNION结果。
+
+2.**selectType**  selectType                                    含义
+
+​    			 SIMPLE	                                        简单查询（不包含子查询或UNION)
+   		 	 PRIMARY	                                最外层查询
+   			 UNION	                                        UNION语句中第二或更后面的查询
+   			 DEPENDENT UNION	                依赖外部查询的UNION中第二或更后面的查询
+​    			UNION RESULT	                        UNION语句的结果集
+​    			SUBQUERY	                                子查询中的第一个查询
+   		        DEPENDENT SUBQUERY	        依赖外部查询的子查询中的第一个查询
+​    			DERIVED	                                查询的派生表(在FROM从句中的子查询）
+  		        MATERIALIZED	                        物化子查询
+​    			UNCACHEABLE SUBQUERY	无法缓存结果的子查询，并且必须为外部查询的每一行重新计算
+​    			UNCACHEABLE UNION	        属于无法缓存的子查询的UNION的第二或更后面的查询
+3.**table**
+
+输出行引用的表的名称。这也可以是下列值之一:
+
+​								< unionM,N>:输出行引用了id值为M和N的行的UNION结果。 
+​								< derivedN>:该行引用了一个id值为n的行的派生表结果。 
+​								例如，派生表可以从from子句的子查询中得到结果。 
+​								< subqueryN>:输出行引用了id值为N的行的物化子查询的结果。
+
+4.**partitions**         由查询匹配记录的分区。对于非分区表，值为NULL。
+
+5.**type**  表示MySQL在表中找到所需行的方式，又称“访问类型”，常见类型从最好到最差依次如下:
+
+system:表只有一行记录，这是const类型的一种特殊情况。
+
+const:常量查询.在整个查询过程中，该表最多有一个匹配行，在查询开始时读取。 因为只有一行，所以这个行中的列值可以被其他优化器视为常量。const表非常快，因为它们只读一次。 当你将**主键或唯一索引**的所有部分与常量值进行比较时，将使用const。 
+
+eq_ref:对前面的表中每一行记录的组合，都从当前表中读取一行。 除了system和const类型之外，这是最好的连接类型。 主键或非空唯一索引在索引的所有部分都被join使用时采用。 **eq_ref可用于与使用=操作符**进行比较的索引列。 比较值可以是一个常量，也可以是一个在该表之前读取的表的列的表达式。**类似ref，区别就在使用的索引是唯一索引**，对于每个**索引键值，表中只有一条记录**匹配，简单来说，就是**多表连接中使用primary key或者 unique key作为关联条件**。
+
+ ref:对前面的表中每一行记录的组合，都从当前表中读取所有匹配索引值的行。 如果join仅使用key的最左前缀，或者key不是主键或唯一索引(换句话说，**如果连接不能基于key值选择单个行**)，**则使用ref**。 如果使用的key只匹配几行，这是一个很好的连接类型。简单来说，就是使用**非唯一索引扫描或者唯一索引的前缀扫描**，返回匹配某个单独值的记录行
+
+fulltext:连接是使用全文索引执行的。
+
+ref_or_null:这个连接类型就像ref，但是加上MySQL对包含空值的行进行了额外的搜索。 这种连接类型优化通常用于解决子查询。 
+
+index_merge:此连接类型指示使用索引合并优化。 在此情形下，输出行中的key列包含所使用的索引列表，key_len列包含用于所使用索引的最长key部分的列表。
+
+unique_subquery:该类型在某些如下格式的IN子查询中替代eq_ref
+
+​			value IN (SELECT primary_key FROM single_table WHERE some_expr) ;unique_subquery只是一个索引查找函数，它完全替代了子查询以提高效率。
+
+index_subquery:该类型与unique_subquery很相似。它也是替代IN子查询，但它适用如下格式的子查询中的非唯一索引： value IN (SELECT key_column FROM single_table WHERE some_expr)
+
+range:只有在给定范围内的行被检索，才使用索引来选择行。 输出行中的key列指示使用哪个索引。 key_len包含所使用的最长key部分。 此类型的ref列为NULL。 range用于当一个key列与一个常量使用=，<>，>，>=，<，<=，<=>，BETWEEN，或IN()操作符进行比较时.
+
+ index：索引连接类型与ALL相同，只是扫描索引树。有两种情况:
+
+​            如果索引是查询的覆盖索引，并且可以用来满足表所需的所有数据，那么只扫描索引树。此种情况下，Extra列显示Using index。一个索引扫描通常比ALL都快，因为索引的大小通常小于表数据。
+​           一个全表扫描以索引顺序读取索引来查找数据行。Extra列不显示Using index。按索引次序扫描，先读索引，再读实际的行，结果还是全表扫描，主要优点是避免了排序。因为索引是排好的
+
+ ALL：全表扫描。 
+6.**possible_keys**  该列指示了MySQL查找表中的行时可以选择的索引。 
+
+​		注意，这个列完全独立于来自EXPLAIN的输出中显示的表的顺序。 这意味着，可能在使用生成的表顺序时，一些可能的键可能无法使用。如果该列为空，则没有相关的索引。在这种情况下，您可以通过检查WHERE子句来检查是否引用了适合于索引的某些列或列，从而提高查询的性能。如果是这样，创建一个适当的索引并再次检查查询。
+
+7.**key**    显示MySQL在查询中实际决定使用的索引，若没有使用索引，显示为NULL
+
+8.**key_len**     key_len列表示MySQL决定使用的键的长度（字节数）。key_len的值使您能够确定MySQL实际使用了一个多列索引的哪些部分。 key_len显示的值为索引字段的最大可能长度，并非实际使用长度，即key_len是根据表定义计算而得，不是通过表内检索出的。
+
+9.**ref**    ref列显示哪些列或常量与键列中命名的索引相比较，以从表中选择行。
+
+10.**rows**   表示MySQL认为执行该查询必须检查的行数。这是根据表统计信息及索引选用情况得出地结果。
+
+11.**filtered**  该列表示将被表条件过滤的表行的估计百分比。 
+
+12.**Extra**   
+
+​	1.Using index 该值表示相应的select操作中使用了覆盖索引（Covering Index）。MySQL可以利用索引返回select列表中的字段，而不必根据索引再次读取数据文件 ，包含所有满足查询需要的数据的索引称为覆盖索引（Covering Index）。
+
+​	2.Using where 表示mysql服务器将在存储引擎检索行后再进行过滤。许多where条件里涉及索引中的列，当（并且如果）它读取索引时，就能被存储引擎检验，因此不是所有带where字句的查询都会显示”Using where”。有时”Using where”的出现就是一个暗示：查询可受益于不同的索引。
+
+​	3.Using temporary  表示MySQL需要使用临时表来存储结果集，常见于排序和分组查询。
+
+​	4.Using filesort  MySQL中无法利用索引完成的排序操作称为“文件排序”。
+
+​	5.Using join buffer  该值强调了在获取连接条件时没有使用索引，并且需要连接缓冲区来存储中间结果。如果出现了这个值，那应该注意，根据查询的具体情况可能需要添加索引来改进能。
+
+​	6.Impossible where  这个值强调了where语句会导致没有符合条件的行。
+
+​	7.Select tables optimized away  这个值意味着仅通过使用索引，优化器可能仅从聚合函数结果中返回一行。
+
+​	8.Index merges  当MySQL 决定要在一个给定的表上使用超过一个索引的时候，就会出现以下格式中的一个，详细说明使用的索引以及合并的类型。 
+
+​	
